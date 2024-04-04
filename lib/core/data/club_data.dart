@@ -32,7 +32,7 @@ List<ClubModel> clubs = [
     id: 54,
     name: 'Bundesliga',
     country: 'Germany',
-    color: const Color(0xFFcf1118),
+    color: const Color(0xFFFFFFFF),
     secondarColor: const Color(0xFFcf1118),
     logo: 'assets/images/bundesliga.png',
   ),

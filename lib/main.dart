@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:transfer_market/core/data/club_data.dart';
-import 'package:transfer_market/core/model/club_model.dart';
+import 'package:flutter_xcore/export_helper.dart';
 import 'package:transfer_market/ui/player_screen.dart';
+import 'package:transfer_market/core/controller/home_controller.dart';
+import 'package:transfer_market/core/data/club_data.dart';
+import 'core/controller/feature_controller.dart';
 
 void main() {
   runApp(const MyApp());
@@ -12,96 +14,123 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
+    return GetMaterialApp(
       title: 'Flutter Demo',
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
       ),
-      home: const MyHomePage(title: 'Flutter Demo Home Page'),
+      home: const HomeScreen(),
     );
   }
 }
 
-class MyHomePage extends StatefulWidget {
-  const MyHomePage({super.key, required this.title});
-  final String title;
-
-  @override
-  State<MyHomePage> createState() => _MyHomePageState();
-}
-
-class _MyHomePageState extends State<MyHomePage>
-    with SingleTickerProviderStateMixin {
-  late final tabController = TabController(length: 5, vsync: this)
-    ..animation?.addListener(() => setState(() {}));
+class HomeScreen extends StatelessWidget with WidgetsBindingObserver {
+  const HomeScreen({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    return SafeArea(
-      child: Scaffold(
-        body: DefaultTabController(
-          length: 5,
-          child: Column(
-            children: [
-              SizedBox(
-                height: 150,
-                child: TabBar(
-                  controller: tabController,
-                  isScrollable: true,
-                  indicatorColor: Colors.transparent,
-                  splashFactory: NoSplash.splashFactory,
-                  dividerColor: Colors.transparent,
-                  overlayColor: MaterialStateProperty.resolveWith<Color?>(
-                      (Set<MaterialState> states) {
-                    return states.contains(MaterialState.focused)
-                        ? null
-                        : Colors.transparent;
-                  }),
-                  tabs: clubs.map((e) {
-                    return _tabItem(data: e);
-                  }).toList(),
+    var ui = DefaultTabController(
+      length: 4,
+      child: GetBuilder(
+        init: MyController.homeController,
+        initState: (state) {
+          WidgetsBinding.instance.addPostFrameCallback((_) async {
+            await MyController.homeController
+                .getTransfers(leagueId: clubs[0].id);
+          });
+        },
+        builder: (HomeController controller) {
+          return Scaffold(
+            appBar: AppBar(
+              title: const Text(
+                'TRANSFER MARKET',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
-              Expanded(
-                child: TabBarView(
-                  physics: const NeverScrollableScrollPhysics(),
-                  children: <Widget>[
-                    PlayerScreen(club: clubs[tabController.index]),
-                    PlayerScreen(club: clubs[tabController.index]),
-                    PlayerScreen(club: clubs[tabController.index]),
-                    PlayerScreen(club: clubs[tabController.index]),
-                    PlayerScreen(club: clubs[tabController.index]),
-                  ],
-                ),
+            ),
+            body: DefaultTabController(
+              length: 5,
+              child: Column(
+                children: [
+                  SizedBox(
+                    height: 150,
+                    child: HomeTabBar(controller: controller),
+                  ),
+                  Expanded(
+                    child: TabBarView(
+                      physics: const NeverScrollableScrollPhysics(),
+                      children: <Widget>[
+                        PlayerScreen(dataController: controller),
+                        PlayerScreen(dataController: controller),
+                        PlayerScreen(dataController: controller),
+                        PlayerScreen(dataController: controller),
+                        PlayerScreen(dataController: controller),
+                      ],
+                    ),
+                  ),
+                ],
               ),
-            ],
-          ),
-        ),
+            ),
+          );
+        },
       ),
     );
+    return ui;
   }
+}
 
-  Widget _tabItem({required ClubModel data}) {
-    int currentIndex = tabController.index;
-    return AnimatedContainer(
-      width: currentIndex == data.index ? 100 : 75,
-      height: currentIndex == data.index ? 100 : 75,
-      decoration: BoxDecoration(
-        color: data.secondarColor ?? data.color.withOpacity(0.4),
-        borderRadius: const BorderRadius.all(Radius.circular(20.0)),
-      ),
-      duration: const Duration(milliseconds: 500),
-      curve: Curves.fastOutSlowIn,
-      child: data.logo != null
-          ? Container(
-              padding: const EdgeInsets.all(15),
-              child: Image.asset(data.logo!),
-            )
-          : Icon(
-              Icons.shield,
-              size: currentIndex == data.index ? 50 : 30,
-              color: data.color,
+class HomeTabBar extends StatefulWidget {
+  const HomeTabBar({Key? key, required this.controller}) : super(key: key);
+  final HomeController controller;
+
+  @override
+  State<HomeTabBar> createState() => _HomeTabBarState();
+}
+
+class _HomeTabBarState extends State<HomeTabBar> {
+  @override
+  Widget build(BuildContext context) {
+    TabController? tabController = DefaultTabController.of(context);
+    tabController.addListener(() {
+      setState(() {
+        widget.controller.indexTab = tabController.index;
+        widget.controller.update();
+      });
+    });
+    return SizedBox(
+      height: 150,
+      child: TabBar(
+        controller: tabController,
+        isScrollable: true,
+        indicatorColor: Colors.transparent,
+        splashFactory: NoSplash.splashFactory,
+        dividerColor: Colors.transparent,
+        overlayColor: MaterialStateProperty.resolveWith<Color?>(
+            (Set<MaterialState> states) {
+          return states.contains(MaterialState.focused)
+              ? null
+              : Colors.transparent;
+        }),
+        tabs: clubs.map((e) {
+          return AnimatedContainer(
+            width: tabController.index == e.index ? 100 : 75,
+            height: tabController.index == e.index ? 100 : 75,
+            decoration: BoxDecoration(
+              color: e.secondarColor ?? e.color.withOpacity(0.4),
+              borderRadius: const BorderRadius.all(Radius.circular(20.0)),
             ),
+            duration: const Duration(milliseconds: 500),
+            curve: Curves.fastOutSlowIn,
+            child: Icon(
+              Icons.sports_soccer_rounded,
+              size: tabController.index == e.index ? 50 : 30,
+              color: e.color,
+            ),
+          );
+        }).toList(),
+      ),
     );
   }
 }
