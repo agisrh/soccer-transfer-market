@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_xcore/export_helper.dart';
-import 'package:transfer_market/ui/player_screen.dart';
-import 'package:transfer_market/core/controller/home_controller.dart';
-import 'package:transfer_market/core/data/club_data.dart';
-import 'core/controller/feature_controller.dart';
+import 'package:transfer_market/ui/home_tab.dart';
+import 'package:transfer_market/ui/match_tab.dart';
+import 'package:transfer_market/ui/statistics_tab.dart';
+import 'package:transfer_market/ui/utils/bottom_navy_bar.dart';
+import 'package:app_tracking_transparency/app_tracking_transparency.dart';
 
 void main() {
   runApp(const MyApp());
@@ -15,7 +16,8 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GetMaterialApp(
-      title: 'Flutter Demo',
+      debugShowCheckedModeBanner: false,
+      title: 'Transfer Simulator',
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
       ),
@@ -24,112 +26,93 @@ class MyApp extends StatelessWidget {
   }
 }
 
-class HomeScreen extends StatelessWidget with WidgetsBindingObserver {
+class HomeScreen extends StatefulWidget {
   const HomeScreen({Key? key}) : super(key: key);
 
   @override
-  Widget build(BuildContext context) {
-    var ui = DefaultTabController(
-      length: 4,
-      child: GetBuilder(
-        init: MyController.homeController,
-        initState: (state) {
-          WidgetsBinding.instance.addPostFrameCallback((_) async {
-            await MyController.homeController
-                .getTransfers(leagueId: clubs[0].id);
-          });
-        },
-        builder: (HomeController controller) {
-          return Scaffold(
-            appBar: AppBar(
-              title: const Text(
-                'TRANSFER MARKET',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-            body: DefaultTabController(
-              length: 5,
-              child: Column(
-                children: [
-                  SizedBox(
-                    height: 150,
-                    child: HomeTabBar(controller: controller),
-                  ),
-                  Expanded(
-                    child: TabBarView(
-                      physics: const NeverScrollableScrollPhysics(),
-                      children: <Widget>[
-                        PlayerScreen(dataController: controller),
-                        PlayerScreen(dataController: controller),
-                        PlayerScreen(dataController: controller),
-                        PlayerScreen(dataController: controller),
-                        PlayerScreen(dataController: controller),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          );
-        },
-      ),
-    );
-    return ui;
-  }
+  State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class HomeTabBar extends StatefulWidget {
-  const HomeTabBar({Key? key, required this.controller}) : super(key: key);
-  final HomeController controller;
+class _HomeScreenState extends State<HomeScreen> {
+  int _currentIndex = 0;
 
-  @override
-  State<HomeTabBar> createState() => _HomeTabBarState();
-}
-
-class _HomeTabBarState extends State<HomeTabBar> {
-  @override
-  Widget build(BuildContext context) {
-    TabController? tabController = DefaultTabController.of(context);
-    tabController.addListener(() {
-      setState(() {
-        widget.controller.indexTab = tabController.index;
-        widget.controller.update();
-      });
+  void changePage(int? index) {
+    setState(() {
+      _currentIndex = index!;
     });
-    return SizedBox(
-      height: 150,
-      child: TabBar(
-        controller: tabController,
-        isScrollable: true,
-        indicatorColor: Colors.transparent,
-        splashFactory: NoSplash.splashFactory,
-        dividerColor: Colors.transparent,
-        overlayColor: MaterialStateProperty.resolveWith<Color?>(
-            (Set<MaterialState> states) {
-          return states.contains(MaterialState.focused)
-              ? null
-              : Colors.transparent;
-        }),
-        tabs: clubs.map((e) {
-          return AnimatedContainer(
-            width: tabController.index == e.index ? 100 : 75,
-            height: tabController.index == e.index ? 100 : 75,
-            decoration: BoxDecoration(
-              color: e.secondarColor ?? e.color.withOpacity(0.4),
-              borderRadius: const BorderRadius.all(Radius.circular(20.0)),
+  }
+
+  Future<void> initPlugin() async {
+    // If the system can show an authorization request dialog
+    if (await AppTrackingTransparency.trackingAuthorizationStatus ==
+        TrackingStatus.notDetermined) {
+      // Show a custom explainer dialog before the system dialog
+      // ignore: use_build_context_synchronously
+      //await showCustomTrackingDialog(context);
+      // Wait for dialog popping animation
+      await Future.delayed(const Duration(milliseconds: 200));
+      // Request system's tracking authorization dialog
+      await AppTrackingTransparency.requestTrackingAuthorization();
+    }
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsFlutterBinding.ensureInitialized()
+        .addPostFrameCallback((_) => initPlugin());
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final List<Widget> pages = [
+      const MatchTab(),
+      const TransferTab(),
+      const StatisticsTab(),
+    ];
+
+    return Scaffold(
+      body: pages[_currentIndex],
+      extendBody: true,
+      bottomNavigationBar: BottomNavyBar(
+        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        selectedIndex: _currentIndex,
+        showElevation: true,
+        itemCornerRadius: 24,
+        curve: Curves.easeIn,
+        onItemSelected: (index) => setState(() => _currentIndex = index),
+        items: <BottomNavyBarItem>[
+          BottomNavyBarItem(
+            icon: const Icon(Icons.sports_soccer),
+            title: const Text(
+              'Matches',
+              style: TextStyle(letterSpacing: 0.5, fontSize: 12),
             ),
-            duration: const Duration(milliseconds: 500),
-            curve: Curves.fastOutSlowIn,
-            child: Icon(
-              Icons.sports_soccer_rounded,
-              size: tabController.index == e.index ? 50 : 30,
-              color: e.color,
+            activeColor: Colors.deepPurple,
+            inactiveColor: Colors.grey.shade400,
+            textAlign: TextAlign.center,
+          ),
+          BottomNavyBarItem(
+            icon: const Icon(Icons.people),
+            title: const Text(
+              'Transfer',
+              style: TextStyle(letterSpacing: 0.5, fontSize: 12),
             ),
-          );
-        }).toList(),
+            activeColor: Colors.deepPurple,
+            inactiveColor: Colors.grey.shade400,
+            textAlign: TextAlign.center,
+          ),
+          BottomNavyBarItem(
+            icon: const Icon(Icons.bar_chart),
+            title: const Text(
+              'Statistics',
+              style: TextStyle(letterSpacing: 0.5, fontSize: 12),
+            ),
+            activeColor: Colors.deepPurple,
+            inactiveColor: Colors.grey.shade400,
+            textAlign: TextAlign.center,
+          ),
+        ],
       ),
     );
   }

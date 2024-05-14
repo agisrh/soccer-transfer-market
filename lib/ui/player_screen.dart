@@ -1,6 +1,11 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_xcore/app_core.dart';
 import 'package:intl/intl.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:screenshot/screenshot.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:tcard/tcard.dart';
 import 'package:transfer_market/core/controller/feature_controller.dart';
 import 'package:transfer_market/core/controller/home_controller.dart';
@@ -19,7 +24,7 @@ class PlayerScreen extends StatefulWidget {
 
 class _PlayerScreenState extends State<PlayerScreen> {
   final TCardController _controller = TCardController();
-  int index = 0;
+  final scController = ScreenshotController();
 
   Widget _card({required ClubModel club, required TransferModel player}) {
     return Container(
@@ -183,13 +188,14 @@ class _PlayerScreenState extends State<PlayerScreen> {
                   size: const Size(380, 500),
                   controller: _controller,
                   onForward: (index, info) {
-                    index = index;
-                    // print(info.direction);
-                    setState(() {});
+                    setState(() {
+                      index = index;
+                    });
                   },
                   onBack: (index, info) {
-                    index = index;
-                    setState(() {});
+                    setState(() {
+                      index = index;
+                    });
                   },
                   onEnd: () {},
                 ),
@@ -223,6 +229,56 @@ class _PlayerScreenState extends State<PlayerScreen> {
                           _controller.reset();
                         }),
                   ],
+                ),
+              if (controller.loading == false &&
+                  controller.transferList.isNotEmpty)
+                Container(
+                  margin: const EdgeInsets.symmetric(
+                      horizontal: 20.0, vertical: 10.0),
+                  child: TextButton(
+                    onPressed: () {
+                      scController
+                          .captureFromWidget(
+                        SizedBox(
+                          width: 380,
+                          height: 500,
+                          child: _card(
+                              club: club,
+                              player:
+                                  controller.transferList[_controller.index]),
+                        ),
+                      )
+                          .then((image) async {
+                        final directory =
+                            await getApplicationDocumentsDirectory();
+                        final imagePath =
+                            await File('${directory.absolute.path}/image.png')
+                                .create();
+                        await imagePath.writeAsBytes(image);
+                        // ignore: use_build_context_synchronously
+                        final box = context.findRenderObject() as RenderBox?;
+
+                        XFile img = XFile(imagePath.path);
+                        List<XFile> files = [img];
+                        await Share.shareXFiles(
+                          files,
+                          sharePositionOrigin:
+                              box!.localToGlobal(Offset.zero) & box.size,
+                        );
+                      });
+                    },
+                    style: TextButton.styleFrom(
+                      backgroundColor: Colors.deepPurple,
+                      //side: BorderSide(color: Colors.grey.shade400),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                    ),
+                    child: const Text(
+                      "Share",
+                      style: TextStyle(color: Colors.white),
+                    ),
+                  ),
                 ),
             ],
           ),
@@ -263,16 +319,23 @@ class _PlayerScreenState extends State<PlayerScreen> {
               width: 100,
               child: Text(
                 title,
-                style: const TextStyle(fontSize: 16),
+                style: const TextStyle(fontSize: 16, color: Colors.black),
               ),
             ),
             const SizedBox(
               width: 20,
-              child: Text(':', style: TextStyle(fontSize: 16)),
+              child: Text(
+                ':',
+                style: TextStyle(fontSize: 16, color: Colors.black),
+              ),
             ),
             Text(
               text,
-              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+              style: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                color: Colors.black,
+              ),
             ),
           ],
         ),

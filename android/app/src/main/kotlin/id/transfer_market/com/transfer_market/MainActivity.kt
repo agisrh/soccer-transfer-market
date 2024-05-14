@@ -1,4 +1,4 @@
-package id.transfer_market.com.transfer_market
+package com.transfer.simulator
 
 import io.flutter.embedding.android.FlutterActivity
 
